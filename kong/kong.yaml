@@ -1,0 +1,70 @@
+_format_version: "3.0"
+
+consumers:
+  - username: auth
+    jwt_secrets:
+      - algorithm: HS256
+        key: auth
+        secret: auth-secret
+
+services:
+- name: auth
+  host: host.docker.internal
+  path: /login
+  port: 5000
+  protocol: http
+  routes:
+    - name: login
+      paths:
+        - /login
+- name: chat
+  host: host.docker.internal
+  path: /
+  port: 80
+  protocol: http
+  plugins:
+  - name: jwt
+    config:
+      cookie_names:
+        - jwt
+      claims_to_verify:
+        - exp
+      secret_is_base64: false
+  routes:
+    - name: chat_index
+      paths:
+        - /chat
+- name: websocket-service
+  host: host.docker.internal
+  port: 7000
+  protocol: http
+  path: /ws
+  plugins:
+    - name: jwt
+      config:
+        cookie_names:
+          - jwt
+        claims_to_verify:
+          - exp
+        secret_is_base64: false
+  routes:
+  - name: websocket-route
+    paths:
+      - /ws
+- name: messages
+  host: host.docker.internal
+  port: 7001
+  protocol: http
+  path: /last_messages
+  plugins:
+    - name: jwt
+      config:
+        cookie_names:
+          - jwt
+        claims_to_verify:
+          - exp
+        secret_is_base64: false
+  routes:
+  - name: last_messages
+    paths:
+      - /last_messages

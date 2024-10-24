@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat</title>
+    </head>
+    <body>
+        <h1>WebSocket Chat</h1>
+        <h2>Your ID: <span id="ws-id"></span></h2>
+        <form action="" onsubmit="sendMessage(event)">
+            <input type="text" id="messageText" autocomplete="off"/>
+            <input type="text" id="receiver" autocomplete="off"/>
+            <button>Send</button>
+        </form>
+        <ul id='messages'>
+        </ul>
+        <script>
+            async function getLastMessages() {
+                const url = "http://127.0.0.1:8000/last_messages"
+                const response = await fetch(url, {
+                    method: "GET"
+                })
+                return response.json()
+            }
+
+            getLastMessages().then(messages => {
+                messages.forEach(msg => {
+                    var messages = document.getElementById('messages')
+                    var message = document.createElement('li')
+                    var content = document.createTextNode(msg.message)
+                    message.appendChild(content)
+                    messages.appendChild(message)
+                })
+            })
+
+            var client_id = Date.now()
+            document.querySelector("#ws-id").textContent = client_id;
+            var ws = new WebSocket(`ws://127.0.0.1:8000/ws/${client_id}`);
+            ws.onmessage = function(event) {
+                var messages = document.getElementById('messages')
+                var message = document.createElement('li')
+                var content = document.createTextNode(event.data)
+                message.appendChild(content)
+                messages.appendChild(message)
+            };
+            function sendMessage(event) {
+                var input = document.getElementById("messageText")
+                var receiver = document.getElementById("receiver")
+                var message = {
+                    msg: input.value,
+                    receiver: receiver.value
+                };
+                ws.send(JSON.stringify(message));
+                input.value = ''
+                receiver.value = ''
+                event.preventDefault()
+            }
+        </script>
+    </body>
+</html>

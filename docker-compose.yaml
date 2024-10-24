@@ -1,0 +1,102 @@
+services:
+  frontend:
+    image: nginx:1.25.5-alpine
+    volumes:
+      - ./frontend/index.html:/usr/share/nginx/html/index.html
+    ports:
+      - 80:80
+  chat:
+    build:
+      context: ./chat
+      dockerfile: Dockerfile
+    ports:
+      - 7000:7000
+    volumes:
+      - ./chat:/app
+    depends_on:
+      - rabbitmq
+  auth:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile
+    environment:
+      MYSQL_HOST: db
+      MYSQL_USER: auth
+      MYSQL_PASSWORD: auth
+      MYSQL_DB: auth
+      MYSQL_PORT: 3306
+      JWT_SECRET: auth-secret
+    ports:
+      - 5000:5000
+    volumes:
+      - ./auth:/app
+    depends_on:
+      - db
+  db:
+    image: mysql:5.7
+    volumes:
+      - ./auth/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: auth
+      MYSQL_USER: auth
+      MYSQL_PASSWORD: auth
+    ports:
+      - 3306:3306
+  kong:
+    image: kong/kong-gateway:3.7.1.1
+    volumes:
+      - ./kong:/kong/declarative/
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
+      - "8003:8003"
+      - "8004:8004"
+      - "8443:8443"
+      - "8444:8444"
+      - "8445:8445"
+    environment:
+      - KONG_DATABASE=off
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001
+      - KONG_ADMIN_GUI_URL=http://localhost:8002
+      - KONG_DECLARATIVE_CONFIG=/kong/declarative/kong.yaml
+      - KONG_LOG_LEVEL=error
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+  postgres:
+    image: postgres:14-alpine
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_PASSWORD=pspass
+      - POSTGRES_USER=messages
+      - POSTGRES_DB=chat_messages
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - 15672:15672
+      - 5672:5672
+  messages:
+    build:
+      context: ./messages
+      dockerfile: Dockerfile
+    ports:
+      - 7001:7001
+    depends_on:
+      - rabbitmq
+      - postgres
+      - redis
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - 6379:6379
+    environment:
+      - REDIS_PASSWORD=redispass
+      - REDIS_PORT=6379
+      - REDIS_DATABASES=1
